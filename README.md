@@ -9,6 +9,10 @@ I may first make tools to dissect an ELF file to help understand what's going on
 ## Setup
 
 - The `START` script is all you need
+  
+  ```
+  ./START doctor init setup build
+  ```
 
 ## Links
 
