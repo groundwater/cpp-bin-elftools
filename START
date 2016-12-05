@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -e
+
+DOCKER_NAME=${DOCKER_CONTAINER_NAME:-app}
+
+function main() {
+	case $1 in
+		init)
+			set -v
+			docker build -t $DOCKER_NAME .
+			;;
+		setup)
+			set -v
+			docker run -v $(pwd):/app $DOCKER_NAME vendor/gyp/gyp --depth=. -f ninja build.gyp
+			;;
+		build)
+			set -v
+			docker run -v $(pwd):/app $DOCKER_NAME ninja -C out/Default
+			;;
+		clean)
+			set -v
+			rm -rf out
+			;;
+	esac
+}
+
+if [ "$#" -le 0 ]; then
+	echo "Usage: $0 COMMAND"
+	cat <<-EOF
+		COMMANDS
+
+		setup  setup ninja build directory
+		build  build with ninja
+	EOF
+elif [ "$#" -gt 1 ]; then
+	$0 $1 && $0 ${*:2}
+else [ "$#" -eq 1 ]; 
+	main $1
+fi
+
