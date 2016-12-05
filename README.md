@@ -6,6 +6,10 @@ but everything else should be done by hand.
 
 I may first make tools to dissect an ELF file to help understand what's going on.
 
+## Setup
+
+- The `START` script is all you need
+
 ## Links
 
 - http://bq9.blogspot.com/2012/02/gyp-and-ninja-hello-world.html
