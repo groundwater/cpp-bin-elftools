@@ -30,6 +30,13 @@ function main() {
 			set -v
 			rm -rf out
 			;;
+		test)
+			set -v
+			docker run -v $(pwd):/app $DOCKER_NAME /app/out/Default/elftool /usr/lib/gcc/x86_64-linux-gnu/5/libstdc++.so
+			;;
+		run)
+			docker run -it -v $(pwd):/app $DOCKER_NAME /bin/bash
+			;;
 		*)
 			err "Unknown Command: $1"
 			;;
