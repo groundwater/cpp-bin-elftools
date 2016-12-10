@@ -32,7 +32,7 @@ function main() {
 			;;
 		test)
 			set -v
-			docker run -v $(pwd):/app $DOCKER_NAME /app/out/Default/elftool /usr/lib/gcc/x86_64-linux-gnu/5/libstdc++.so
+			docker run -v $(pwd):/app $DOCKER_NAME /app/out/Default/elftool /app/out/Default/elftool
 			;;
 		run)
 			docker run -it -v $(pwd):/app $DOCKER_NAME /bin/bash

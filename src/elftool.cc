@@ -5,8 +5,9 @@
 
 #include "linux/elf.h"
 
-#define fmt(word) printf("word\n");
-#define C(header) case header: fmt(header); break;
+#define fmt(word) printf("%s\n", #word);
+#define C(header) case header: printf("%s\n", #header); break;
+#define D(err) default: printf("%s\n", #err);
 
 int main(int argc, char *argv[]) {
   char * fName = argv[1];
@@ -31,7 +32,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  Elf32_Ehdr * eh = (Elf32_Ehdr *) buffer;
+  Elf64_Ehdr * eh = (Elf64_Ehdr *) buffer;
 
   printf("Testing Magic Bytes: 0x%x %c%c%c\n",
       eh->e_ident[EI_MAG0], 
@@ -49,6 +50,7 @@ int main(int argc, char *argv[]) {
     case ELFCLASS64:
       printf("64 Bit Class\n");
       break;
+    D(Unknown Class)
   }
 
   switch(eh->e_ident[EI_DATA]) {
@@ -61,23 +63,18 @@ int main(int argc, char *argv[]) {
     case ELFDATA2MSB:
       printf("Big Endian\n");
       break;
+    D(Unknown Encoding)
   }
 
   switch(eh->e_ident[EI_VERSION]) {
-    case EV_NONE:
-      printf("Unknown Version\n");
-      break;
-    case EV_CURRENT:
-      printf("Current Version\n");
-      break;
+    C(EV_NONE)
+    C(EV_CURRENT)
+    D(Unknown Version)
   }
 
   switch(eh->e_ident[EI_OSABI]) {
-    case ELFOSABI_LINUX:
-      printf("Linux ABI\n");
-      break;
-    default:
-      printf("Unknown: %x\n", eh->e_ident[EI_OSABI]);
+    C(ELFOSABI_LINUX)
+    D(Unknown ABI)
   }
 
   printf("Current Type: ");
@@ -86,39 +83,91 @@ int main(int argc, char *argv[]) {
     C(ET_REL)
     C(ET_DYN)
     C(ET_NONE)
+    D(Unknown Type)
   }
 
   // https://github.com/torvalds/linux/blob/5924bbecd0267d87c24110cbe2041b5075173a25/include/uapi/linux/elf-em.h#L20-L45
   switch(eh->e_machine) {
-    case EM_860:
-      printf("x86 arch\n");
-      break;
-    case EM_X86_64:
-      printf("AMD 64\n");
-      break;
-    default:
-      printf("Unknown: %x", eh->e_machine);
-      break;
+    C(EM_860)
+    C(EM_X86_64)
+    D(Unknown Architecture)
   }
 
-  long long phoff = eh->e_phoff;
-  Elf32_Half psize = eh->e_phentsize;
+  Elf64_Off phoff = eh->e_phoff;
+  Elf64_Half pnum = eh->e_phnum;
+  Elf64_Half psize = eh->e_phentsize;
 
-  printf("PH Offset: %x\n", phoff);
+  printf("PH Offset: %llu\n", phoff);
+  printf("PH Size: %d\n", psize);
 
-  Elf32_Phdr * ph0 = (Elf32_Phdr*) (&eh[phoff]);
+  char * ph0 = ((char*)eh + phoff);
+  
+  for(int i=0; i<pnum; i++) {
+    Elf64_Phdr * ph = (Elf64_Phdr*) (ph0 + i*psize);
 
-  printf("%x\n", ph0->p_type);
+    printf("PH(%d): ", i);
+    switch(ph->p_type) {
+      C(PT_NULL)
+      C(PT_LOAD)
+      C(PT_DYNAMIC)
+      C(PT_INTERP)
+      C(PT_NOTE)
+      C(PT_SHLIB)
+      C(PT_PHDR)
+      C(PT_LOPROC)
+      C(PT_HIPROC)
+      default:
+        printf("Unknown (%x)\n", ph->p_type);
+    }
 
-  switch(ph0->p_type) {
-    C(PT_NULL)
-    C(PT_LOAD)
-    C(PT_INTERP)
-    C(PT_DYNAMIC)
-    C(PT_NOTE)
-    C(PT_LOPROC)
-    C(PT_HIPROC)
-    C(PT_PHDR)
+    printf("PH/Flags: ");
+    if (ph->p_flags & PF_W) {
+      printf("W");
+    }
+    if (ph->p_flags & PF_R) {
+      printf("R");
+    }
+    if (ph->p_flags & PF_X) {
+      printf("X");
+    }
+    printf("\n");
+  }
+
+  printf("Section Header String Index: %d\n", eh->e_shstrndx);
+
+  Elf64_Off shoff = eh->e_shoff;
+  Elf64_Half shsize = eh->e_shentsize;
+  Elf64_Half shnum = eh->e_shnum;
+  Elf64_Half shidx = eh->e_shstrndx;
+
+  char * sh0 = ((char*)eh + shoff);
+
+  for(int i=0; i<shnum; i++) {
+    Elf64_Shdr * sh = (Elf64_Shdr*) (sh0 + i*shsize);
+
+    printf("Section Name Index: %d\n", sh->sh_name);
+
+    switch(sh->sh_type) {
+      C(SHT_NULL)
+      C(SHT_PROGBITS)
+      C(SHT_SYMTAB)
+      C(SHT_STRTAB)
+      C(SHT_RELA)
+      C(SHT_HASH)
+      C(SHT_DYNAMIC)
+      C(SHT_NOTE)
+      C(SHT_NOBITS)
+      C(SHT_REL    )
+      C(SHT_SHLIB)
+      C(SHT_DYNSYM)
+      C(SHT_NUM    )
+      C(SHT_LOPROC)
+      C(SHT_HIPROC)
+      C(SHT_LOUSER)
+      C(SHT_HIUSER)
+      D(Unknown SH Type)
+    }
+
   }
 
   return 0;
