@@ -2,12 +2,14 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string.h>
 
-#include "linux/elf.h"
+#include "elf.h"
 
 #define fmt(word) printf("%s\n", #word);
-#define C(header) case header: printf("%s\n", #header); break;
+#define C(header) case header: printf("- %s\n", #header); break;
 #define D(err) default: printf("%s\n", #err);
+#define M(X,V) if (X & V) { printf("%s\n", #X); }
 
 int main(int argc, char *argv[]) {
   char * fName = argv[1];
@@ -142,10 +144,20 @@ int main(int argc, char *argv[]) {
 
   char * sh0 = ((char*)eh + shoff);
 
+  Elf64_Shdr * strSect = (Elf64_Shdr*) (sh0 + eh->e_shstrndx*shsize);
+  printf("Str Index %x\n", eh->e_shstrndx);
+
+  Elf64_Shdr * stringTable;
+  Elf64_Shdr * symTable;
+  Elf64_Shdr * relaTable;
+  Elf64_Shdr * relTable;
+
   for(int i=0; i<shnum; i++) {
     Elf64_Shdr * sh = (Elf64_Shdr*) (sh0 + i*shsize);
+    
+    char* strPtr = (char*)eh + strSect->sh_offset + sh->sh_name;
 
-    printf("Section Name Index: %d\n", sh->sh_name);
+    printf("Section Name Index: %s\n", strPtr);
 
     switch(sh->sh_type) {
       C(SHT_NULL)
@@ -168,6 +180,120 @@ int main(int argc, char *argv[]) {
       D(Unknown SH Type)
     }
 
+    if (sh->sh_type == SHT_RELA) {
+      relaTable = sh;
+    }
+
+    if (sh->sh_type == SHT_REL) {
+      relTable = sh;
+    }
+
+    if (sh->sh_type == SHT_SYMTAB) {
+      symTable = sh;
+    }
+
+    if (strcmp(strPtr, ".strtab") == 0) {
+      stringTable = sh;
+    }
+
+    M(SHF_WRITE, sh->sh_flags)
+    M(SHF_ALLOC, sh->sh_flags)
+    M(SHF_EXECINSTR, sh->sh_flags)
+    M(SHF_MASKPROC, sh->sh_flags)
+  }
+
+  printf("Found %d Symbols\n", symTable->sh_entsize);
+
+  for(int i=0; i<symTable->sh_entsize; i++) {
+    printf("Symbol %d\n", i);
+
+    // the symbol table is an array of Elf${arch}_Sym structs
+    Elf64_Sym * st = (Elf64_Sym*) ((char*)eh + symTable->sh_offset + sizeof(Elf64_Sym)*i);
+
+    switch(ELF64_ST_TYPE(st->st_info)) {
+      C(STT_NOTYPE )
+      C(STT_OBJECT )
+      C(STT_FUNC   )
+      C(STT_SECTION)
+      C(STT_FILE   )
+      C(STT_COMMON )
+      C(STT_TLS    )
+    }
+
+    switch(ELF64_ST_BIND(st->st_info)) {
+      C(STB_LOCAL)
+      C(STB_GLOBAL)
+      C(STB_WEAK)
+    }
+
+    printf("- Section Index: ");
+    switch(st->st_shndx) {
+      C(SHN_UNDEF)
+      C(SHN_LOPROC)
+      C(SHN_HIRESERVE)
+      C(SHN_ABS)
+      C(SHN_HIPROC)
+      C(SHN_COMMON)
+      default:
+        printf("%x\n", st->st_shndx);
+    }
+
+    printf("- Value: %x\n", st->st_value);
+    printf("- Size: %x\n", st->st_size);
+
+    bool probablyHasName = (
+      ELF64_ST_BIND(st->st_info) == STB_GLOBAL ||
+      ELF64_ST_BIND(st->st_info) == STB_LOCAL
+    );
+
+    if (st->st_name != 0 && probablyHasName) {
+      char* strPtr = (char*)eh + stringTable->sh_offset + st->st_name;
+
+      printf("- Name (%s)\n", strPtr);
+    } else {
+      printf("- No Name\n");
+    }
+  }
+
+  if (relTable) {
+    printf("Found %d Relocation Entries\n", relTable->sh_entsize);
+    for(int i=0; i<relTable->sh_entsize; i++) {
+      Elf64_Rel * r = (Elf64_Rel*) ((char*)eh + relTable->sh_offset + sizeof(Elf64_Rel)*i);
+
+      int j = ELF64_R_SYM(r->r_info);
+      int t = ELF64_R_TYPE(r->r_info);
+
+      printf("Relocation\n");
+
+      // Elf64_Sym * st = (Elf64_Sym*) ((char*)eh + symTable->sh_offset + sizeof(Elf64_Sym)*j);
+      // char* strPtr = (char*)eh + stringTable->sh_offset + st->st_name;
+
+      switch(ELF64_R_TYPE(r->r_info)) {
+        C(R_X86_64_NONE)
+        C(R_X86_64_64)
+        C(R_X86_64_PC32)
+        C(R_X86_64_GOT32)
+        C(R_X86_64_PLT32)
+        C(R_X86_64_COPY)
+        C(R_X86_64_GLOB_DAT)
+        C(R_X86_64_JUMP_SLOT)
+        C(R_X86_64_RELATIVE)
+        C(R_X86_64_GOTPCREL)
+        C(R_X86_64_32)
+        C(R_X86_64_32S)
+        C(R_X86_64_16)
+        C(R_X86_64_PC16)
+        C(R_X86_64_8)
+        C(R_X86_64_PC8)
+        C(R_X86_64_NUM)
+      }
+
+      // https://github.com/torvalds/linux/blob/5924bbecd0267d87c24110cbe2041b5075173a25/arch/x86/um/asm/elf.h#L101
+
+      printf("- Symbol %d\n", j);
+    }
+  } else {
+    printf("No relocation table\n");
   }
 
   return 0;

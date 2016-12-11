@@ -16,7 +16,7 @@ function main() {
 			;;
 		init)
 			set -v
-			docker build -t $DOCKER_NAME .
+			docker build --no-cache -t $DOCKER_NAME .
 			;;
 		setup)
 			set -v
@@ -32,7 +32,11 @@ function main() {
 			;;
 		test)
 			set -v
-			docker run -v $(pwd):/app $DOCKER_NAME /app/out/Default/elftool /app/out/Default/elftool
+			docker run -v $(pwd):/app $DOCKER_NAME /app/out/Default/elftool out/Default/obj/src/elftool.elftool.o
+			;;
+		debug)
+			set -v
+			docker run -v $(pwd):/app $DOCKER_NAME gdb /app/out/Default/elftool
 			;;
 		run)
 			docker run -it -v $(pwd):/app $DOCKER_NAME /bin/bash
