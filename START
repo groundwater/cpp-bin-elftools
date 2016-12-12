@@ -48,12 +48,22 @@ function main() {
 }
 
 if [ "$#" -le 0 ]; then
-	echo "Usage: $0 COMMAND"
+	echo "Usage: $0 COMMANDS..."
 	cat <<-EOF
-		COMMANDS
 
-		setup  setup ninja build directory
-		build  build with ninja
+    COMMANDS
+
+    doctor   check if docker is ready
+    init     build docker container
+    setup    npm install dependencies
+    build    build with node-gyp
+    test     run tests
+    watch    re-run build/test on file change
+    bash     start a bash shell inside container
+
+    e.g.     ./START doctor init setup
+             ./START build test
+
 	EOF
 elif [ "$#" -gt 1 ]; then
 	# support multiple commands via recursive invocation
