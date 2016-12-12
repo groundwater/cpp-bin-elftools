@@ -6,12 +6,23 @@ but everything else should be done by hand.
 
 I may first make tools to dissect an ELF file to help understand what's going on.
 
+## Status
+
+- [ ] build an ELF by hand
+- [ ] read an ELF
+  - [x] read ELF header
+  - [ ] read program headers
+  - [ ] read section headers
+  - [ ] read string table
+  - [ ] read symbol table
+  - [ ] read relocation table
+
 ## Setup
 
 - The `START` script is all you need
   
   ```
-  ./START doctor init setup build
+  ./START doctor init setup build test
   ```
 
 ## Links
