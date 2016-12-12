@@ -1,0 +1,30 @@
+{
+  "name": "cpp-bin-elftools",
+  "version": "1.0.0",
+  "description": "My goal is to build an ELF file from hand. I am allowed to use the `elf.h` headers to determine the size and structure of the file contents, but everything else should be done by hand.",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test",
+    "install": "node-gyp rebuild",
+    "build": "node-gyp --tarball=node-v7.2.1-headers.tar.gz rebuild",
+    "watch": "watch 'npm -s run build && npm -s test' test src -d"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/groundwater/cpp-bin-elftools.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "gypfile": true,
+  "bugs": {
+    "url": "https://github.com/groundwater/cpp-bin-elftools/issues"
+  },
+  "homepage": "https://github.com/groundwater/cpp-bin-elftools#readme",
+  "devDependencies": {
+    "nan": "^2.4.0",
+    "node-gyp": "^3.4.0",
+    "tap": "^8.0.1",
+    "watch": "^1.0.1"
+  }
+}

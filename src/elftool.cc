@@ -4,6 +4,8 @@
 #include <sys/stat.h>
 #include <string.h>
 
+#include <nan.h>
+
 #include "elf.h"
 
 #define fmt(word) printf("%s\n", #word);
@@ -11,6 +13,7 @@
 #define D(err) default: printf("%s\n", #err);
 #define M(X,V) if (X & V) { printf("%s\n", #X); }
 
+/*
 int main(int argc, char *argv[]) {
   char * fName = argv[1];
   FILE * fd;
@@ -298,3 +301,128 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
+
+*/
+
+#define SET_OUT_KEYVAL(key, val) case val: out->Set(\
+    Nan::New(key).ToLocalChecked(),\
+    Nan::New(#val).ToLocalChecked()\
+    ); break;
+
+void ReadProgramHeader(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+}
+
+void ReadHeader(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Local<v8::Object> out = Nan::New<v8::Object>();
+  v8::Local<v8::Object> bufferObj = info[0]->ToObject();
+  char* buffer = node::Buffer::Data(bufferObj);
+
+  Elf64_Ehdr * eh = (Elf64_Ehdr *) buffer;
+
+  if (
+    eh->e_ident[EI_MAG0] != ELFMAG0 ||
+    eh->e_ident[EI_MAG1] != ELFMAG1 ||
+    eh->e_ident[EI_MAG2] != ELFMAG2 ||
+    eh->e_ident[EI_MAG3] != ELFMAG3
+  ) {
+    return Nan::ThrowError("Error Parsing Magic Bytse");
+  }
+
+  switch(eh->e_ident[EI_CLASS]) {
+    SET_OUT_KEYVAL("ident", ELFCLASSNONE)
+    SET_OUT_KEYVAL("ident", ELFCLASS32)
+    SET_OUT_KEYVAL("ident", ELFCLASS64)
+    default:
+      return Nan::ThrowError("Error Parsing Ident");
+  }
+
+  switch(eh->e_ident[EI_DATA]) {
+    SET_OUT_KEYVAL("data", ELFDATANONE)
+    SET_OUT_KEYVAL("data", ELFDATA2LSB)
+    SET_OUT_KEYVAL("data", ELFDATA2MSB)
+    default:
+      return Nan::ThrowError("Error Parsing Byte Order");
+  }
+
+  switch(eh->e_ident[EI_VERSION]) {
+    SET_OUT_KEYVAL("EI_VERSION",EV_NONE)
+    SET_OUT_KEYVAL("EI_VERSION",EV_CURRENT)
+    default:
+      return Nan::ThrowError("Error Parsing EI_VERSION");
+  }
+
+  switch(eh->e_ident[EI_OSABI]) {
+    SET_OUT_KEYVAL("EI_OSABI", ELFOSABI_NONE)
+    SET_OUT_KEYVAL("EI_OSABI", ELFOSABI_LINUX)
+    default:
+      return Nan::ThrowError("Error Parsing EI_OSABI");
+  }
+
+  switch(eh->e_type) {
+    SET_OUT_KEYVAL("e_type", ET_EXEC)
+    SET_OUT_KEYVAL("e_type", ET_REL)
+    SET_OUT_KEYVAL("e_type", ET_DYN)
+    SET_OUT_KEYVAL("e_type", ET_NONE)
+    default:
+      return Nan::ThrowError("Error Parsing e_type");
+  }
+
+  // https://github.com/torvalds/linux/blob/5924bbecd0267d87c24110cbe2041b5075173a25/include/uapi/linux/elf-em.h#L20-L45
+  switch(eh->e_machine) {
+    SET_OUT_KEYVAL("e_machine", EM_860)
+    SET_OUT_KEYVAL("e_machine", EM_X86_64)
+    default:
+      return Nan::ThrowError("Error Parsing e_machine");
+  }
+
+  unsigned int phoff = eh->e_phoff;
+  unsigned int shoff = eh->e_shoff;
+
+  v8::Local<v8::Uint32> phoffNum = Nan::New<v8::Uint32>(phoff);
+  v8::Local<v8::Uint32> shoffNum = Nan::New<v8::Uint32>(shoff);
+  
+  out->Set(Nan::New("e_shoff").ToLocalChecked(), shoffNum);
+  out->Set(Nan::New("e_phoff").ToLocalChecked(), phoffNum);
+
+  info.GetReturnValue().Set(out);
+}
+
+void LoadBuffer(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  // v8::Local<v8::Object> obj = Nan::New<v8::Object>();
+  v8::String::Utf8Value _fileName (info[0]->ToString());
+  std::string fileName = std::string(*_fileName);
+  const char* fName = fileName.c_str();
+
+  FILE * fd;
+
+  fd = fopen(fName, "r");
+  if (fd == NULL) {
+    return Nan::ThrowError("Bad File Name");
+  }
+
+  struct stat sb;
+  if (stat(fName, &sb) == -1) {
+    return Nan::ThrowError("Cannot Stat File");
+  }
+
+  void * buffer = malloc(sizeof(char)*sb.st_size);
+
+  if(fread(buffer,1,sb.st_size,fd) == 0) {
+    return Nan::ThrowError("Empty File");
+  }
+
+  // Elf64_Ehdr * eh = (Elf64_Ehdr *) buffer;
+  Nan::MaybeLocal<v8::Object> ob = Nan::NewBuffer((char*)buffer, sb.st_size);
+
+  // obj->Set(Nan::New("msg").ToLocalChecked(), info[0]->ToString());
+
+  info.GetReturnValue().Set(ob.ToLocalChecked());
+}
+
+void Init(v8::Local<v8::Object> exports, v8::Local<v8::Object> module) {
+  Nan::SetMethod(exports, "load", LoadBuffer);
+  Nan::SetMethod(exports, "readHeader", ReadHeader);
+  Nan::SetMethod(exports, "readProgramHeader", ReadProgramHeader);
+}
+
+NODE_MODULE(elftool, Init)

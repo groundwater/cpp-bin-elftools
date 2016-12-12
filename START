@@ -20,11 +20,10 @@ function main() {
 			;;
 		setup)
 			set -v
-			docker run -v $(pwd):/app $DOCKER_NAME vendor/gyp/gyp --depth=. -f ninja build.gyp
 			;;
 		build)
 			set -v
-			docker run -v $(pwd):/app $DOCKER_NAME ninja -C out/Default
+			docker run -v $(pwd):/app $DOCKER_NAME npm run build
 			;;
 		clean)
 			set -v
@@ -32,13 +31,12 @@ function main() {
 			;;
 		test)
 			set -v
-			docker run -v $(pwd):/app $DOCKER_NAME /app/out/Default/elftool out/Default/obj/src/elftool.elftool.o
+			docker run -v $(pwd):/app $DOCKER_NAME npm test
 			;;
-		debug)
-			set -v
-			docker run -v $(pwd):/app $DOCKER_NAME gdb /app/out/Default/elftool
+		watch)
+      docker run -v $(pwd):/app $DOCKER_NAME npm run watch
 			;;
-		run)
+		bash)
 			docker run -it -v $(pwd):/app $DOCKER_NAME /bin/bash
 			;;
 		*)
