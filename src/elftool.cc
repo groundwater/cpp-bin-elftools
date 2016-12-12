@@ -378,11 +378,34 @@ void ReadHeader(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   unsigned int phoff = eh->e_phoff;
   unsigned int shoff = eh->e_shoff;
 
-  v8::Local<v8::Uint32> phoffNum = Nan::New<v8::Uint32>(phoff);
-  v8::Local<v8::Uint32> shoffNum = Nan::New<v8::Uint32>(shoff);
-  
-  out->Set(Nan::New("e_shoff").ToLocalChecked(), shoffNum);
+  // TODO: is free managed by external objects?
+
+  // push the data we want to box to the heap
+  Elf64_Off * php = new Elf64_Off(eh->e_phoff);
+
+  // attach a pionter to our data to a v8 external object
+  v8::Local<v8::External> pe = Nan::New<v8::External>(php);
+
+  // Create a return object that will hold a local representation
+  // (i.e. double)
+  // and an external object pointing to the uncoerced value.
+  // This way, we can *see* numbers without downcasting 64-bit
+  // values to 32-bit permenantly
+  v8::Local<v8::Object> phoffNum = Nan::New<v8::Object>();
+  phoffNum->Set(Nan::New("external").ToLocalChecked(), pe);
+  phoffNum->Set(Nan::New("local").ToLocalChecked(), 
+      Nan::New<v8::Uint32>(phoff)
+  );
   out->Set(Nan::New("e_phoff").ToLocalChecked(), phoffNum);
+
+  Elf64_Off * shp = new Elf64_Off(eh->e_shoff);
+  v8::Local<v8::External> se = Nan::New<v8::External>(shp);
+  v8::Local<v8::Object> shoffNum = Nan::New<v8::Object>();
+  shoffNum->Set(Nan::New("external").ToLocalChecked(), se);
+  shoffNum->Set(Nan::New("local").ToLocalChecked(), 
+      Nan::New<v8::Uint32>(shoff)
+  );
+  out->Set(Nan::New("e_shoff").ToLocalChecked(), shoffNum);
 
   info.GetReturnValue().Set(out);
 }

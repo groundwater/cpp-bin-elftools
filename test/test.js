@@ -42,10 +42,8 @@ test('check header', t => {
   t.equal(header.e_type, 'ET_REL')
   t.equal(header.e_machine, 'EM_X86_64')
 
-  t.assert(header.e_shoff > 0, `shoff ${header.e_shoff} > 0`)
-
-  // object file has no program header
-  t.equal(header.e_phoff, 0, `phoff ${header.e_phoff} == 0`)
+  t.assert(header.e_shoff.local > 0, `shoff ${header.e_shoff} > 0`)
+  t.equal(header.e_phoff.local, 0, "object file has no program header")
   
   t.end()
 })
